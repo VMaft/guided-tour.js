@@ -136,21 +136,36 @@
         }
     }
 
-    function registerSection(sectionId, steps) {
+    function registerSection(config) {
+
+        // Обратная совместимость — старый вызов registerSection('id', steps)
+        if (typeof config === 'string') {
+            console.warn(`[TourUtils] registerSection(id, steps) — устаревший синтаксис`);
+            config = { id: config, steps: arguments[1] ?? [] };
+        }
+
+        const { id, tag, title, comment, steps = [] } = config;
+
+        // Авторегистрация секции в движке
+        const cfg = window.__tourConfig;
+        if (cfg?.sections && !cfg.sections.find(s => s.id === id)) {
+            cfg.sections.push({ id, tag: tag ?? `// ${id}`, title: title ?? id, comment });
+            console.info(`[TourUtils] ✓ Секция добавлена в __tourConfig: ${id}`);
+        }
+
         function doRegister(engine) {
             let running = false;
 
-            engine.onSectionEnter?.(sectionId, async () => {
+            engine.onSectionEnter?.(id, async () => {
                 running = true;
                 window.TourCursor?.show();
 
                 let completed = false;
-
                 try {
                     await runScenario(steps, engine, () => running);
                     completed = running;
                 } catch (err) {
-                    if (running) console.warn(`[Tour:${sectionId}] Ошибка:`, err);
+                    if (running) console.warn(`[Tour:${id}] Ошибка:`, err);
                 } finally {
                     running = false;
                     window.TourCursor?.hide();
@@ -158,33 +173,31 @@
                 }
             });
 
-            engine.onSectionLeave?.(sectionId, () => {
+            engine.onSectionLeave?.(id, () => {
                 running = false;
                 window.TourCursor?.reset();
             });
 
-            console.info(`[TourUtils] ✓ Зарегистрирована секция: ${sectionId}`);
+            console.info(`[TourUtils] ✓ Зарегистрирован сценарий: ${id}`);
         }
 
         if (window.__tourEngine) {
-            /* Движок уже есть — регистрируемся синхронно */
             doRegister(window.__tourEngine);
         } else {
-            /* Страховка — движок ещё не создан, ждём */
-            console.warn(`[TourUtils] __tourEngine не найден синхронно для: ${sectionId}, жду...`);
-
+            console.warn(`[TourUtils] __tourEngine не найден для: ${id}, жду...`);
             const start = Date.now();
-            const id = setInterval(() => {
+            const interval = setInterval(() => {
                 if (window.__tourEngine) {
-                    clearInterval(id);
+                    clearInterval(interval);
                     doRegister(window.__tourEngine);
                 } else if (Date.now() - start > 5_000) {
-                    clearInterval(id);
-                    console.error(`[TourUtils] __tourEngine так и не появился: ${sectionId}`);
+                    clearInterval(interval);
+                    console.error(`[TourUtils] __tourEngine так и не появился: ${id}`);
                 }
             }, 50);
         }
     }
+
 
 
     /* ── Экспорт ── */

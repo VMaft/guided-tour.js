@@ -56,14 +56,8 @@
     ══════════════════════════ */
     const _cfg = window.__tourConfig ?? {};
 
-    const TOUR_SECTIONS = _cfg.sections;
-
+    const TOUR_SECTIONS = _cfg.sections ?? [];
     const SECTION_DELAY = _cfg.delay ?? 5000;
-
-    if (!TOUR_SECTIONS.length) {
-        console.warn('[guided-tour] No sections defined. Add sections to window.__tourConfig.');
-        return;
-    }
 
     /* ══════════════════════════
        СОСТОЯНИЕ - начальное состояние демонстрации
@@ -193,7 +187,7 @@
         await new Promise(r => setTimeout(r, 320));
         if (typingGeneration !== myGen) return;
 
-        await pushLogLine(`▶ ${text}`, true);
+        await pushLogLine(`$: ${text}`, true);
         restoreInputCursor();
     }
 
@@ -281,6 +275,8 @@
         `;
         tourTerm.insertBefore(header, tourTerm.firstChild);
 
+        // Дублирвоание элементов управление автотуром в окно терминиала. Легко стилизовать под любое другое окно уведомлений и комментария.
+        // Обязательно убедитесь в наличии идентификаторов для корректных селектов
         termCtrlPrev = document.getElementById('tourCtrlPrev');
         termCtrlPlay = document.getElementById('tourCtrlPlay');
         termCtrlNext = document.getElementById('tourCtrlNext');
@@ -374,7 +370,7 @@
 
         const s = TOUR_SECTIONS[idx];
 
-        await pushLogLine(`[${idx + 1}/${TOUR_SECTIONS.length}] → ${s.tag}`, false);
+        await pushLogLine(`Step: [${idx + 1}/${TOUR_SECTIONS.length}] → ${s.tag} section`, false);
         updateBar(idx);
         scrollToSection(idx);
 

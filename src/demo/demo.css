@@ -18,9 +18,9 @@
 ───────────────────────────────────────────── */
 
 :root {
-    --accent: #ffb14a;
-    --accent-dim: rgba(255, 228, 74, 0.15);
-    --accent-glow: rgba(255, 228, 74, 0.35);
+    --accent: #4a768f;
+    --accent-dim: rgba(74, 174, 255, 0.15);
+    --accent-glow: rgba(74, 174, 255, 0.35);
 
     --tour-green: #4ade80;
     --tour-green-dim: rgba(74, 222, 128, 0.12);
@@ -46,12 +46,12 @@
     --bg-input: rgba(0, 0, 0, 0.04);
 
     --border: rgba(0, 0, 0, 0.08);
-    --border-accent: rgba(255, 183, 74, 0.5);
+    --border-accent: rgba(74, 183, 255, 0.5);
 
     --text-primary: #1a1a2e;
     --text-secondary: #4a4a6a;
     --text-muted: #8888aa;
-    --text-accent: #e89c2a;
+    --text-accent: #456692;
 
     --glass-bg: rgba(255, 255, 255, 0.60);
     --glass-border: rgba(0, 0, 0, 0.08);
@@ -78,7 +78,7 @@
     --text-primary: #e8e8f0;
     --text-secondary: #9898b0;
     --text-muted: #5a5a72;
-    --text-accent: #ffb74a;
+    --text-accent: #477ea3;
 
     --glass-bg: rgba(255, 255, 255, 0.04);
     --glass-border: rgba(255, 255, 255, 0.10);
@@ -1201,12 +1201,17 @@ body.auto-mode-active {
 }
 
 .tour-term__prompt {
-    font-family: var(--font-mono, monospace);
+    font-family: var(--tour-green, monospace);
     font-size: 0.72rem;
     font-weight: 600;
     line-height: 1;
     flex-shrink: 0;
     user-select: none;
+}
+
+body .tour-term__prompt {
+    color: #07b848;
+    font-size: 0.85rem;
 }
 
 #tourTermText {
