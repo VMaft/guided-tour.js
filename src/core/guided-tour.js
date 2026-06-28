@@ -1,18 +1,28 @@
 'use strict';
 
 /* ══════════════════════════════════════════════════════════════
-   guided-tour.js  v1.0.0
+   guided-tour.js  v1.1.0
    https://github.com/VMaft/guided-tour.js
 
-   Usage:
+   Подключение:
+     <script src="your-sections.js"></script>    // всегда над guided-tour.js
      <script src="guided-tour.js"></script>
-     <script src="tour-cursor.js"></script>      // optional
+     <script src="tour-cursor.js"></script>      // опционально
      <script src="tour-utils.js"></script>
-     <script src="your-sections.js"></script>
+
+   Config (your-sections.js):
+     window.__tourConfig = {
+         delay: 5000,
+         onTourStart: () => console.log('tour started'),
+         onTourEnd:   () => console.log('tour ended'),
+         sections: [
+             { id: 'hero', tag: '// hero', title: 'Hero', comment: '...' },
+         ]
+     };
+
 ══════════════════════════════════════════════════════════════ */
 
 (function initGuidedTour() {
-
     /* ══════════════════════════
        ЭЛЕМЕНТЫ
     ══════════════════════════ */
@@ -20,7 +30,11 @@
     const tourTermText = document.getElementById('tourTermText');
     const tourTermBody = document.getElementById('tourTermBody');
 
+    // Обязательно переопределить запуск клавиши под свое решение
+    // В index.html для этого должна быть клавиша автотура 
     const btnAuto = document.getElementById('btnAuto');
+    const btnAutoNav = document.getElementById('btnAutoNav');
+
     const overlay = document.getElementById('autoOverlay');
     const autoBar = document.getElementById('autoBar');
     const autoBarSection = document.getElementById('autoBarSection');
@@ -35,36 +49,24 @@
     const iconPause = autoPlayBtn?.querySelector('.auto-icon-pause') ?? null;
     const iconPlay = autoPlayBtn?.querySelector('.auto-icon-play') ?? null;
 
-    if (!btnAuto || !overlay) return;
+    if (!btnAuto || !btnAutoNav || !overlay) return;
 
     /* ══════════════════════════
-       СЕКЦИИ
+       КОНФИГ
     ══════════════════════════ */
-    const TOUR_SECTIONS = [
-        {
-            id: 'hero',
-            tag: '// hero',
-            title: 'Hero',
-            comment: 'Welcome to guided-tour.js — a lightweight auto-tour library.'
-        },
-        {
-            id: 'about',
-            tag: '// about',
-            title: 'About',
-            comment: 'Learn what guided-tour.js can do for your site.'
-        },
-        {
-            id: 'features',
-            tag: '// features',
-            title: 'Features',
-            comment: 'Explore the key features: cursor, typing, scenarios.'
-        },
-    ];
+    const _cfg = window.__tourConfig ?? {};
 
-    const SECTION_DELAY = 5000;
+    const TOUR_SECTIONS = _cfg.sections;
+
+    const SECTION_DELAY = _cfg.delay ?? 5000;
+
+    if (!TOUR_SECTIONS.length) {
+        console.warn('[guided-tour] No sections defined. Add sections to window.__tourConfig.');
+        return;
+    }
 
     /* ══════════════════════════
-       СОСТОЯНИЕ
+       СОСТОЯНИЕ - начальное состояние демонстрации
     ══════════════════════════ */
     let currentIdx = 0;
     let isPlaying = true;
@@ -75,12 +77,34 @@
     let tourState = 'idle'; // 'idle' | 'navigating' | 'hook'
     let timer = null;
     let fillTimer = null;
-
     let prevLogLine = null;
     let activeLogLine = null;
 
     const sectionEnterHooks = {};
     const sectionLeaveHooks = {};
+
+    let termCtrlPrev = null;
+    let termCtrlPlay = null;
+    let termCtrlNext = null;
+    let termIconPause = null;
+    let termIconPlay = null;
+
+    /* ══════════════════════════
+       RESET STATE - чистый перезапуск, сбрасываем все к начальному 
+    ══════════════════════════ */
+    function resetState() {
+        currentIdx = 0;
+        isPlaying = true;
+        isRunning = false;
+        sectionGeneration = 0;
+        typingGeneration = 0;
+        pendingHookSection = null;
+        tourState = 'idle';
+        timer = null;
+        fillTimer = null;
+        prevLogLine = null;
+        activeLogLine = null;
+    }
 
     /* ══════════════════════════
        HELPERS
@@ -96,8 +120,21 @@
     }
 
     /* ══════════════════════════
+       НАВИГАЦИЯ
+       - ходим всегда только по секциям.
+       - одна секция - один полноценный сценарий 
+    ══════════════════════════ */
+    function prevStep() {
+        if (currentIdx > 0) { pauseTour(); goTo(currentIdx - 1); }
+    }
+
+    function nextStep() {
+        if (currentIdx < TOUR_SECTIONS.length - 1) { pauseTour(); goTo(currentIdx + 1); }
+        else { pauseTour(); showEndToast(); }
+    }
+
+    /* ══════════════════════════
        TERMINAL LOG
-       Строго 2 строки: prev (dim) + active (bright)
     ══════════════════════════ */
     async function pushLogLine(text, isActive) {
         if (!tourTermBody) return;
@@ -181,6 +218,7 @@
         tourTerm.style.removeProperty('display');
         tourTerm.classList.add('is-visible');
         tourTerm.setAttribute('aria-hidden', 'false');
+        tourTerm.setAttribute('aria-live', 'polite');
     }
 
     function hideTourTerminal() {
@@ -189,17 +227,17 @@
         tourTerm.setAttribute('aria-hidden', 'true');
         setTimeout(() => {
             if (!isRunning) {
-                tourTerm.style.display = 'none';
-                if (tourTermBody) tourTermBody.innerHTML = '';
+                /* Fix 9 — сначала обнуляем ссылки, потом innerHTML */
                 prevLogLine = null;
                 activeLogLine = null;
+                if (tourTermBody) tourTermBody.innerHTML = '';
+                tourTerm.style.display = 'none';
             }
         }, 300);
     }
 
     /* ══════════════════════════
        ИНФРАСТРУКТУРА
-       Вертикальные линии + заголовок терминала
     ══════════════════════════ */
     function injectInfra() {
 
@@ -215,11 +253,15 @@
 
         if (!tourTerm) return;
 
-        /* Убираем старый заголовок если был */
+        // Пересоздаем терминал если есть
         tourTerm.querySelector('.tour-term-header')?.remove();
 
         const header = document.createElement('div');
         header.className = 'tour-term-header';
+
+        // Стили конкретно под решение в виде отображения окна вывода для комментариев для терминала.
+        // Полностью кастомизируемое! Главное не забыть переопределить значения для tourTerm на актуальный id для окна вывода текста
+
         header.innerHTML = `
             <span class="tour-term-dots">
                 <span class="tour-dot tour-dot--red"    id="tourTermStop"></span>
@@ -230,31 +272,29 @@
             <span class="tour-term-ctrl">
                 <button class="tour-ctrl-btn" id="tourCtrlPrev" title="Previous">&#8249;</button>
                 <button class="tour-ctrl-btn" id="tourCtrlPlay" title="Pause / Resume">
-                <span class="tour-btn-icon-pause">⏸</span>
-                <span class="tour-btn-icon-play" style="display:none">▶</span>
+                    <span class="tour-btn-icon-pause">⏸</span>
+                    <span class="tour-btn-icon-play" style="display:none">▶</span>
                 </button>
                 <button class="tour-ctrl-btn" id="tourCtrlNext" title="Next">&#8250;</button>
             </span>
             <span class="tour-term-tag">[ TOUR ]</span>
-    `;
+        `;
         tourTerm.insertBefore(header, tourTerm.firstChild);
 
-        /* Обработчики inline-кнопок */
-        document.getElementById('tourCtrlPrev')?.addEventListener('click', e => {
-            e.stopPropagation();
-            if (currentIdx > 0) { pauseTour(); goTo(currentIdx - 1); }
-        });
+        termCtrlPrev = document.getElementById('tourCtrlPrev');
+        termCtrlPlay = document.getElementById('tourCtrlPlay');
+        termCtrlNext = document.getElementById('tourCtrlNext');
+        termIconPause = termCtrlPlay?.querySelector('.tour-btn-icon-pause') ?? null;
+        termIconPlay = termCtrlPlay?.querySelector('.tour-btn-icon-play') ?? null;
 
-        document.getElementById('tourCtrlPlay')?.addEventListener('click', e => {
+        termCtrlPrev?.addEventListener('click', e => { e.stopPropagation(); prevStep(); });
+
+        termCtrlPlay?.addEventListener('click', e => {
             e.stopPropagation();
             if (isPlaying) pauseTour(); else resumeTour();
         });
 
-        document.getElementById('tourCtrlNext')?.addEventListener('click', e => {
-            e.stopPropagation();
-            if (currentIdx < TOUR_SECTIONS.length - 1) { pauseTour(); goTo(currentIdx + 1); }
-            else { pauseTour(); showEndToast(); }
-        });
+        termCtrlNext?.addEventListener('click', e => { e.stopPropagation(); nextStep(); });
 
         document.getElementById('tourTermStop')?.addEventListener('click', e => {
             e.stopPropagation();
@@ -287,17 +327,14 @@
         if (iconPause) iconPause.style.display = playing ? '' : 'none';
         if (iconPlay) iconPlay.style.display = playing ? 'none' : '';
 
-        /* Inline-кнопка в терминале */
-        const ip = document.querySelector('#tourCtrlPlay .tour-btn-icon-pause');
-        const ipl = document.querySelector('#tourCtrlPlay .tour-btn-icon-play');
-        if (ip) ip.style.display = playing ? '' : 'none';
-        if (ipl) ipl.style.display = playing ? 'none' : '';
+        if (termIconPause) termIconPause.style.display = playing ? '' : 'none';
+        if (termIconPlay) termIconPlay.style.display = playing ? 'none' : '';
 
         tourTerm?.classList.toggle('is-paused', !playing);
     }
 
     /* ══════════════════════════
-       НАВИГАЦИЯ
+       SCROLL - до секции по ИД (указанных your-sections.js)
     ══════════════════════════ */
     function scrollToSection(idx) {
         const s = TOUR_SECTIONS[idx];
@@ -311,10 +348,19 @@
         });
     }
 
+    /* ══════════════════════════
+       GOTO
+    ══════════════════════════ */
     async function goTo(idx) {
         if (idx < 0 || idx >= TOUR_SECTIONS.length) return;
 
-        /* Вызываем leave-хук предыдущей секции */
+        function findNextValid(fromIdx) {
+            for (let i = fromIdx; i < TOUR_SECTIONS.length; i++) {
+                if (document.getElementById(TOUR_SECTIONS[i].id)) return i;
+            }
+            return -1;
+        }
+
         const prev = TOUR_SECTIONS[currentIdx];
         if (prev && idx !== currentIdx) sectionLeaveHooks[prev.id]?.();
 
@@ -332,7 +378,6 @@
         updateBar(idx);
         scrollToSection(idx);
 
-        /* Пульс по краям экрана */
         document.querySelectorAll('.auto-edge-line').forEach(el => {
             el.classList.remove('is-pulsing');
             void el.offsetWidth;
@@ -340,7 +385,6 @@
             setTimeout(() => el.classList.remove('is-pulsing'), 520);
         });
 
-        /* Печатаем комментарий секции */
         if (s.comment) {
             showTourTerminal();
             await typeText(s.comment, 28);
@@ -350,10 +394,8 @@
 
         tourState = 'idle';
 
-        /* Есть enter-хук? */
         if (sectionEnterHooks[s.id]) {
             if (!isPlaying) {
-                /* На паузе — откладываем */
                 pendingHookSection = s.id;
                 return;
             }
@@ -361,7 +403,6 @@
             return;
         }
 
-        /* Нет хука — просто ждём */
         if (isPlaying) {
             scheduleNext();
             resetFillAnimation();
@@ -426,51 +467,44 @@
         document.body.classList.remove('is-paused');
         hideToast();
 
-        /* goTo ещё печатает — он сам разберётся */
         if (tourState === 'navigating') return;
 
-        /* Есть отложенный хук */
         if (pendingHookSection) {
             _runHook(pendingHookSection, sectionGeneration);
             return;
         }
 
-        /* Хук уже выполняется */
         if (tourState === 'hook') return;
 
-        /* Обычная секция */
         scheduleNext();
         resetFillAnimation();
     }
 
     function startTour() {
+        // На мобиьльных разве есть смысл показывать автотур?  
         if (isMobile()) return;
 
+        resetState();
         isRunning = true;
-        isPlaying = true;
-        currentIdx = 0;
-        sectionGeneration = 0;
-        typingGeneration = 0;
-        pendingHookSection = null;
-        tourState = 'idle';
 
         injectInfra();
 
         if (tourTerm) tourTerm.style.removeProperty('display');
 
         overlay.classList.add('is-active');
+        autoBar?.setAttribute('tabindex', '-1');
+        autoBar?.focus();
         overlay.setAttribute('aria-hidden', 'false');
         document.body.classList.add('auto-mode-active');
         document.body.classList.remove('is-paused');
 
         syncPauseIcon(true);
 
-        if (tourTermBody) tourTermBody.innerHTML = '';
         prevLogLine = null;
         activeLogLine = null;
+        if (tourTermBody) tourTermBody.innerHTML = '';
         restoreInputCursor();
 
-        /* onStepComplete — перезаписываем чтобы захватить актуальное замыкание */
         window.__tourEngine.onStepComplete = () => {
             if (!isRunning || !isPlaying) return;
             const gen = sectionGeneration;
@@ -484,9 +518,12 @@
 
         goTo(0);
         showStartToast();
+        _cfg.onTourStart?.();
     }
 
     function stopTour() {
+        const leavingId = TOUR_SECTIONS[currentIdx]?.id;
+
         isRunning = false;
         isPlaying = false;
         tourState = 'idle';
@@ -495,7 +532,7 @@
         clearTimeout(timer);
         clearInterval(fillTimer);
 
-        sectionLeaveHooks[TOUR_SECTIONS[currentIdx]?.id]?.();
+        sectionLeaveHooks[leavingId]?.();
         window.TourCursor?.reset();
 
         overlay.classList.remove('is-active');
@@ -504,6 +541,7 @@
 
         hideTourTerminal();
         hideToast();
+        _cfg.onTourEnd?.();
     }
 
     /* ══════════════════════════
@@ -550,11 +588,11 @@
     }
 
     /* ══════════════════════════
-       ДВИЖОК — создаём сразу
-       Секции регистрируются до startTour
+       ДВИЖОК
     ══════════════════════════ */
     window.__tourEngine = {
         typeText,
+        sleep: _sleep,
         onSectionEnter: (id, cb) => { sectionEnterHooks[id] = cb; },
         onSectionLeave: (id, cb) => { sectionLeaveHooks[id] = cb; },
         onStepComplete: () => { },
@@ -569,22 +607,19 @@
         if (!isMobile()) startTour();
     });
 
+    btnAutoNav.addEventListener('click', () => {
+        if (!isMobile()) startTour();
+    });
+
     autoExitBtn?.addEventListener('click', stopTour);
 
     autoPlayBtn?.addEventListener('click', () => {
         if (isPlaying) pauseTour(); else resumeTour();
     });
 
-    autoPrevBtn?.addEventListener('click', () => {
-        if (currentIdx > 0) { pauseTour(); goTo(currentIdx - 1); }
-    });
+    autoPrevBtn?.addEventListener('click', prevStep);
+    autoNextBtn?.addEventListener('click', nextStep);
 
-    autoNextBtn?.addEventListener('click', () => {
-        if (currentIdx < TOUR_SECTIONS.length - 1) { pauseTour(); goTo(currentIdx + 1); }
-        else { pauseTour(); showEndToast(); }
-    });
-
-    /* Клавиатура */
     document.addEventListener('keydown', e => {
         if (!isRunning) return;
         switch (e.key) {
@@ -598,16 +633,15 @@
                 break;
             case 'ArrowRight':
                 e.preventDefault();
-                if (currentIdx < TOUR_SECTIONS.length - 1) { pauseTour(); goTo(currentIdx + 1); }
+                nextStep();
                 break;
             case 'ArrowLeft':
                 e.preventDefault();
-                if (currentIdx > 0) { pauseTour(); goTo(currentIdx - 1); }
+                prevStep();
                 break;
         }
     });
 
-    /* Ресайз — выходим на мобилке */
     window.addEventListener('resize', () => {
         if (isRunning && isMobile()) stopTour();
     });
