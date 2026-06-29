@@ -237,30 +237,27 @@
 
     </div>
 
-    <!-- ══════════════════════════════════════
-     TOUR TERMINAL
-  ══════════════════════════════════════ -->
+    <!-- ══════════════════════════════════════════════════════════════
+     TOUR TERMINAL — comment panel
+══════════════════════════════════════════════════════════════ -->
     <div class="tour-terminal" id="tourTerminal" aria-hidden="true">
 
-        <!-- Заголовок терминала -->
+        <!-- Заголовок: только кнопки управления по центру -->
         <div class="tour-term-header">
-            <div class="tour-term-dots" aria-hidden="true">
-                <span class="tour-dot tour-dot--red"></span>
-                <span class="tour-dot tour-dot--yellow"></span>
-                <span class="tour-dot tour-dot--green"></span>
+            <div class="tour-term-controls">
+                <button class="tour-ctrl-btn" id="tourCtrlPrev" title="Previous"
+                    aria-label="Previous step">&#8249;</button>
+                <button class="tour-ctrl-btn tour-ctrl-btn--play" id="tourCtrlPlay" title="Pause / Resume"
+                    aria-label="Pause">
+                    <span class="tour-btn-icon-pause">⏸</span>
+                    <span class="tour-btn-icon-play" style="display:none">▶</span>
+                </button>
+                <button class="tour-ctrl-btn" id="tourCtrlNext" title="Next" aria-label="Next step">&#8250;</button>
             </div>
-            <span class="tour-term-title">guided-tour — terminal</span>
-            <span class="tour-term-tag">[ TOUR ]</span>
         </div>
 
-        <!-- Лог (2 строки) -->
-        <div id="tourTermBody" aria-live="polite"></div>
-
-        <!-- Строка ввода -->
-        <div class="tour-term__input">
-            <span class="tour-term__prompt">$: </span>
-            <span id="tourTermText"></span>
-        </div>
+        <!-- Окно вывода комментария -->
+        <div class="tour-term-body" id="tourTermBody" aria-live="polite"></div>
 
     </div>
 

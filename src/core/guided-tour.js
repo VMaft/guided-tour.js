@@ -133,30 +133,29 @@
     async function pushLogLine(text, isActive) {
         if (!tourTermBody) return;
 
-        if (prevLogLine) {
-            const dying = prevLogLine;
-            dying.style.transition = 'opacity 0.2s ease, transform 0.22s ease';
-            dying.style.opacity = '0';
-            dying.style.transform = 'translateY(-100%)';
-            setTimeout(() => dying.remove(), 230);
-            prevLogLine = null;
-        }
-
+        /* Убираем предыдущую активную строку → делаем приглушённой */
         if (activeLogLine) {
             activeLogLine.classList.remove('is-active');
             activeLogLine.classList.add('is-prev');
-            prevLogLine = activeLogLine;
-            activeLogLine = null;
         }
+
+        /* Старую "prev" просто удаляем без анимации */
+        if (prevLogLine) {
+            prevLogLine.remove();
+        }
+
+        prevLogLine = activeLogLine;
+        activeLogLine = null;
 
         const line = document.createElement('div');
         line.className = 'tour-log-line' + (isActive ? ' is-active' : ' is-prev');
         line.textContent = text;
         line.style.opacity = '0';
-        line.style.transform = 'translateY(8px)';
+        line.style.transform = 'translateY(6px)';
         line.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
 
         tourTermBody.appendChild(line);
+        tourTermBody.scrollTop = tourTermBody.scrollHeight;
 
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
         line.style.opacity = '';
@@ -170,43 +169,39 @@
        TYPETEXT
     ══════════════════════════ */
     async function typeText(text, speedMs = 28) {
-        if (!tourTermText) return;
+        if (!tourTermBody) return;
 
         typingGeneration++;
         const myGen = typingGeneration;
 
-        restoreInputCursor();
-        const cursor = tourTermText.querySelector('.tour-term-cursor');
+        /* Создаём новую активную строку для печати */
+        if (activeLogLine) {
+            activeLogLine.classList.remove('is-active');
+            activeLogLine.classList.add('is-prev');
+            if (prevLogLine) prevLogLine.remove();
+            prevLogLine = activeLogLine;
+            activeLogLine = null;
+        }
 
+        const line = document.createElement('div');
+        line.className = 'tour-log-line is-active';
+        line.style.opacity = '0';
+        line.style.transition = 'opacity 0.15s ease';
+        tourTermBody.appendChild(line);
+        activeLogLine = line;
+
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        line.style.opacity = '';
+
+        /* Посимвольный вывод */
         for (let i = 0; i < text.length; i++) {
             await new Promise(r => setTimeout(r, speedMs));
             if (typingGeneration !== myGen) return;
-            tourTermText.insertBefore(document.createTextNode(text[i]), cursor);
-        }
-
-        await new Promise(r => setTimeout(r, 320));
-        if (typingGeneration !== myGen) return;
-
-        await pushLogLine(`$: ${text}`, true);
-        restoreInputCursor();
-    }
-
-    function restoreInputCursor() {
-        if (!tourTermText) return;
-        const existing = tourTermText.querySelector('.tour-term-cursor');
-        tourTermText.innerHTML = '';
-        if (existing) {
-            tourTermText.appendChild(existing);
-        } else {
-            const c = document.createElement('span');
-            c.className = 'tour-term-cursor';
-            tourTermText.appendChild(c);
+            line.textContent = text.slice(0, i + 1);
+            tourTermBody.scrollTop = tourTermBody.scrollHeight;
         }
     }
 
-    /* ══════════════════════════
-       ТЕРМИНАЛ ПОКАЗ / СКРЫТИЕ
-    ══════════════════════════ */
     function showTourTerminal() {
         if (!tourTerm) return;
         tourTerm.style.removeProperty('display');
@@ -247,60 +242,23 @@
 
         if (!tourTerm) return;
 
-        // Пересоздаем терминал если есть
-        tourTerm.querySelector('.tour-term-header')?.remove();
-
-        const header = document.createElement('div');
-        header.className = 'tour-term-header';
-
-        // Стили конкретно под решение в виде отображения окна вывода для комментариев для терминала.
-        // Полностью кастомизируемое! Главное не забыть переопределить значения для tourTerm на актуальный id для окна вывода текста
-
-        header.innerHTML = `
-            <span class="tour-term-dots">
-                <span class="tour-dot tour-dot--red"    id="tourTermStop"></span>
-                <span class="tour-dot tour-dot--yellow" id="tourTermPause"></span>
-                <span class="tour-dot tour-dot--green"></span>
-            </span>
-            <span class="tour-term-title" id="tourTermTitle">guided-tour: // hero</span>
-            <span class="tour-term-ctrl">
-                <button class="tour-ctrl-btn" id="tourCtrlPrev" title="Previous">&#8249;</button>
-                <button class="tour-ctrl-btn" id="tourCtrlPlay" title="Pause / Resume">
-                    <span class="tour-btn-icon-pause">⏸</span>
-                    <span class="tour-btn-icon-play" style="display:none">▶</span>
-                </button>
-                <button class="tour-ctrl-btn" id="tourCtrlNext" title="Next">&#8250;</button>
-            </span>
-            <span class="tour-term-tag">[ TOUR ]</span>
-        `;
-        tourTerm.insertBefore(header, tourTerm.firstChild);
-
-        // Дублирвоание элементов управление автотуром в окно терминиала. Легко стилизовать под любое другое окно уведомлений и комментария.
-        // Обязательно убедитесь в наличии идентификаторов для корректных селектов
+        /* Подключаем кнопки управления из статичного HTML */
         termCtrlPrev = document.getElementById('tourCtrlPrev');
         termCtrlPlay = document.getElementById('tourCtrlPlay');
         termCtrlNext = document.getElementById('tourCtrlNext');
         termIconPause = termCtrlPlay?.querySelector('.tour-btn-icon-pause') ?? null;
         termIconPlay = termCtrlPlay?.querySelector('.tour-btn-icon-play') ?? null;
 
-        termCtrlPrev?.addEventListener('click', e => { e.stopPropagation(); prevStep(); });
-
-        termCtrlPlay?.addEventListener('click', e => {
-            e.stopPropagation();
-            if (isPlaying) pauseTour(); else resumeTour();
-        });
-
-        termCtrlNext?.addEventListener('click', e => { e.stopPropagation(); nextStep(); });
-
-        document.getElementById('tourTermStop')?.addEventListener('click', e => {
-            e.stopPropagation();
-            stopTour();
-        });
-
-        document.getElementById('tourTermPause')?.addEventListener('click', e => {
-            e.stopPropagation();
-            if (isPlaying) pauseTour(); else resumeTour();
-        });
+        /* Вешаем обработчики только один раз */
+        if (!termCtrlPrev._tourBound) {
+            termCtrlPrev.addEventListener('click', e => { e.stopPropagation(); prevStep(); });
+            termCtrlPlay.addEventListener('click', e => {
+                e.stopPropagation();
+                if (isPlaying) pauseTour(); else resumeTour();
+            });
+            termCtrlNext.addEventListener('click', e => { e.stopPropagation(); nextStep(); });
+            termCtrlPrev._tourBound = true;  // флаг чтобы не дублировать
+        }
     }
 
     /* ══════════════════════════
@@ -499,7 +457,6 @@
         prevLogLine = null;
         activeLogLine = null;
         if (tourTermBody) tourTermBody.innerHTML = '';
-        restoreInputCursor();
 
         window.__tourEngine.onStepComplete = () => {
             if (!isRunning || !isPlaying) return;
