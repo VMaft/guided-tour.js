@@ -116,34 +116,40 @@ guided-tour.js/
 
 ## Примеры использования
 
-### Базовый тур
+### Базовый тур демонстарции about секции **[демо](https://vmaft.github.io/guided-tour.js/)**
 
 ```javascript
-// Простейший сценарий из 3 шагов
-registerTourScenario({
-  section: 'features',
-  sectionTitle: 'Возможности',
-  comment: 'Обзор ключевых функций',
-  steps: [
-    { action: 'type', text: 'Рассмотрим основные функции:', delay: 1500 },
-    { action: 'highlight', selector: '.feature-1', text: 'Быстрая работа', delay: 2000 },
-    { action: 'highlight', selector: '.feature-2', text: 'Легкая настройка', delay: 2000 }
-  ]
+TourUtils.registerSection({
+    id: 'about',
+    tag: '// about',
+    title: 'About',
+    comment: 'Learn what guided-tour.js can do for your site.',
+    steps: [
+        { action: 'highlight', selector: '#about .gt-section__text', duration: 3_000 },
+
+        { action: 'sleep', duration: 800 },
+        { action: 'type', text: 'cat about.txt' },
+
+        { action: 'hover', selector: '#feat1', duration: 1_400 },
+        { action: 'type', text: '// Pausable — Space to pause / resume' },
+
+        { action: 'hover', selector: '#feat2', duration: 1_400 },
+        { action: 'type', text: '// Keyboard navigation — ← →' },
+
+        { action: 'hover', selector: '#feat3', duration: 1_400 },
+        { action: 'type', text: '// Optional terminal overlay' },
+
+        { action: 'hover', selector: '#feat4', duration: 1_400 },
+        { action: 'type', text: '// Virtual cursor with hover effects' },
+
+        { action: 'sleep', duration: 600 },
+        { action: 'type', text: '// 4 features — loaded ✓' },
+
+    ]
 });
 ```
-
-### С виртуальным курсором
-
-```javascript
-registerTourScenario({
-  section: 'demo',
-  steps: [
-    { action: 'type', text: 'Сейчас я нажму на кнопку...', delay: 1000 },
-    { action: 'moveTo', selector: '#submit-btn', delay: 1500 },
-    { action: 'click', selector: '#submit-btn', delay: 500 }
-  ]
-});
-```
+### Как это выглядит **[демо](https://vmaft.github.io/guided-tour.js/)**
+<img width="1192" height="720" alt="chrome-capture-2026-07-08 (1)" src="https://github.com/user-attachments/assets/50f05bc7-4353-4794-93d6-f19811e1ee87" />
 
 ---
 
