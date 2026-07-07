@@ -1,8 +1,9 @@
-# guided-tour.js
+<p align="center">
+  <img src="assets/logo.svg" width="600" alt="guided-tour.js">
+</p>
+
 > Интерактивные авто-туры для ваших веб-страниц с эффектом живой демонстрации
 
-[![Demo](https://img.shields.io/badge/demo-live-success?style=flat-square)](https://vmaft.github.io/guided-tour.js/)
-[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
 
 ---
@@ -13,9 +14,9 @@
 ## Demo
 
 **[Посмотреть живую демонстрацию →](https://vmaft.github.io/guided-tour.js/)**
-
-![Demo Preview](docs/demo-preview.gif)
 > *Автоматическая навигация с подсветкой элементов и терминалом субтитров*
+
+
 
 ---
 
@@ -42,7 +43,10 @@
  **Управление** — пауза, навигация стрелками, выход  
  **Легкая интеграция** — простое описание сценариев
 
+
+
 ---
+
 
 ## Структура библиотеки
 
@@ -67,7 +71,10 @@ guided-tour.js/
 | **tour-sections.js** | Описание секций: регистрация всех секций автотура (с v1.1.0 генерируется автоматически) | Да |
 | **tour-scenario.js** | Сценарий: описание всех действий, комментарии к секциям, шаги демонстрации | Да |
 
+
+
 ---
+
 
 ## Установка
 
