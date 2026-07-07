@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 150" width="100%" height="auto">
+  <!-- Градиентный фон -->
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Основное название -->
+  <text x="300" y="65" 
+        font-family="'Courier New', monospace" 
+        font-size="48" 
+        font-weight="bold" 
+        fill="url(#grad)" 
+        text-anchor="middle">
+    guided-tour.js
+  </text>
+  
+  <!-- Подзаголовок -->
+  <text x="300" y="100" 
+        font-family="Arial, sans-serif" 
+        font-size="18" 
+        fill="#555" 
+        text-anchor="middle">
+    Lightweight auto-tour Library for any webpage.
+  </text>
+  
+  <!-- Строка с тегами -->
+  <text x="300" y="130" 
+        font-family="Arial, sans-serif" 
+        font-size="14" 
+        fill="#888" 
+        text-anchor="middle">
+    Zero dependencies  •  Pure JS  •  72KB
+  </text>
+</svg>
